@@ -1,0 +1,19 @@
+{
+  "name": "MIC-Password-Flow",
+  "version": "1.0.0",
+  "bin": {"mpf": "mpf.js"},
+  "contributors": [
+    "Brian Wilson <brian@kinvey.com>",
+    "Michael Salinger <mjsalinger@kinvey.com>",
+    "Morgan Bickle <morgan@kinvey.com>"
+  ],
+  "description": "Kinvey Mobile Identity Connect password flow demonstration",
+  "keywords": ["Kinvey"],
+  "engines": {
+    "node": ">=0.10"
+  },
+  "license": "Apache-2.0",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
