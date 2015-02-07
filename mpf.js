@@ -29,9 +29,13 @@ var redirectUri = SET_TO_YOUR_APP_VALUE;           // This is the redirect URI c
 // Utilities
 
 /** Kill the program with a *catchable* exception if condition is false. */
-function assert(bool){
+function assert(bool, message){
   if (!bool){
-    console.error("Expected expression to evaluate to true: ", bool);
+    if (!message){
+      message = "Expected expression to evaluate to true";
+    }
+    message += ": ";
+    console.error(message, bool);
     throw new Error("Assertion failed!");
   }
 }
@@ -149,20 +153,18 @@ function requestTokens(code, callback){
 
 
 
+// Main Script
 nodeScriptName = process.argv[1];
 
 var username = process.argv[2] || process.env.USERNAME || die("Invalid Username");
 var password = process.argv[3] || process.env.PASSWORD || die("Invalid password");
 
-
-
-
-// Ensure that these have been correctly 
-assert(username);
-assert(password);
-assert(kinveyAppId !== SET_TO_YOUR_APP_VALUE);
-assert(kinveyAppSecret !== SET_TO_YOUR_APP_VALUE);
-assert(redirectUri !== SET_TO_YOUR_APP_VALUE);
+// Ensure that all defaults have been updated before running
+assert(username, "Username must not be null/undefined");
+assert(password, "Passowrd must not be null/undefined");
+assert(kinveyAppId !== SET_TO_YOUR_APP_VALUE, "Kinvey App ID != SET_TO_YOUR_APP_VALUE");
+assert(kinveyAppSecret !== SET_TO_YOUR_APP_VALUE, "Kinvey App Secret != SET_TO_YOUR_APP_VALUE");
+assert(redirectUri !== SET_TO_YOUR_APP_VALUE, "Redirect URI != SET_TO_YOUR_APP_VALUE");
 
 
 requestAuthURI(function(error, loginUri){
