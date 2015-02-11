@@ -59,6 +59,33 @@ function die(message){
   process.exit(-1);
 }
 
+function reportRequestFailure(response, message){
+  var headers = response.headers;
+  var status = response.statusCode;
+
+  var contentType = headers["content-type"];
+  var requestId = headers["x-kinveyauth-request-id"];
+
+  console.log("!!! ", message, ":");
+  console.log("!!! \tHTTP Status:   ", status);
+  console.log("!!! \tRequest ID:    ", requestId);
+
+  if (contentType.indexOf("application/json") !== -1){
+    // JSON Body
+    var debugMessage = JSON.parse(response.body);
+    console.log("!!! \tError:         ", debugMessage.error);
+    console.log("!!! \tDescription:   ", debugMessage.description);
+    console.log("!!! \tDebug:         ", debugMessage.debug);
+  } else {
+    console.log("!!! \tResponse body: ", response.body);
+  }
+
+
+  console.log("\n*** Stacktrace follows: ");
+
+  return new Error("Request returned unsuccessfully");
+}
+
 
 // Kinvey Mobile Identity Connect related functions
 
@@ -86,7 +113,7 @@ function requestAuthURI(callback){
       console.log(error);
       return callback(error);
     } else {
-      return callback(new Error("Error obtaining temp login URI"));
+      return callback(reportRequestFailure(httpResponse, "Error obtaining temp login URI"));
     }
   });
 
@@ -126,7 +153,7 @@ function requestAuthGrant(tempUri, username, password, callback){
       console.log(error);
       return callback(error);
     } else {
-      return callback(new Error("Requesting auth grant failed"));
+      return callback(reportRequestFailure(httpResponse, "Requesting auth grant failed"));
     }
   });
 }
@@ -161,7 +188,7 @@ function requestTokens(code, callback){
       console.log(error);
       return callback(error);
     } else {
-      return callback(new Error("Requesting OAuth token failed"));
+      return callback(reportRequestFailure(httpResponse, "Requesting OAuth token failed"));
     }
   });
 }
