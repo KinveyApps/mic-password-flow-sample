@@ -16,12 +16,14 @@
 var request = require('request');
 var util = require('util');
 
+/** This should be set to what the name of the script is for error reporting. */
 var nodeScriptName = "";
 
 var SET_TO_YOUR_APP_VALUE = "Set this to your app specific value before running.";
 
 var kinveyInstanceName = ""; // If using multi-tenant this is blank, otherwise it's something like ``vmwus1- ''
 var authUrlRoot = "https://" + kinveyInstanceName + "auth.kinvey.com/oauth/"; // DO NOT CHANGE THIS
+
 var kinveyAppId = SET_TO_YOUR_APP_VALUE;           // App ID from Kinvey Console
 var kinveyAppSecret = SET_TO_YOUR_APP_VALUE;       // App Secret from Kinvey Console
 var redirectUri = SET_TO_YOUR_APP_VALUE;           // This is the redirect URI configured in the console
@@ -58,7 +60,13 @@ function die(message){
 }
 
 
-// Kinvey Mobile Identity Connect 
+// Kinvey Mobile Identity Connect related functions
+
+
+/**
+ * Request the temporary auth URI from MIC.  This temporary auth URI
+ * will be used in the next step.
+*/
 function requestAuthURI(callback){
   var options = {
     url: authUrlRoot + "auth",
@@ -84,6 +92,11 @@ function requestAuthURI(callback){
 
 }
 
+/** Request an auth grant for this user.  This is step 2 in the auth flow,
+ * it uses the temp URI as the resource that is authenticated against.
+ * The response is an auth grant which can be used to obtain tokens, this
+ * is limited in duration.
+*/
 function requestAuthGrant(tempUri, username, password, callback){
   var options = {
     url: tempUri,
@@ -118,6 +131,10 @@ function requestAuthGrant(tempUri, username, password, callback){
   });
 }
 
+/** Request the auth token and refresh token (if enabled).  This is the final step
+ * in the MIC auth flow.  The response is the authentication token and a refresh
+ * token (if refresh tokens have been configured in the console).
+*/
 function requestTokens(code, callback){
   var options = {
     url: authUrlRoot + "token",
@@ -167,20 +184,27 @@ assert(kinveyAppSecret !== SET_TO_YOUR_APP_VALUE, "Kinvey App Secret != SET_TO_Y
 assert(redirectUri !== SET_TO_YOUR_APP_VALUE, "Redirect URI != SET_TO_YOUR_APP_VALUE");
 
 
+// Step 1
 requestAuthURI(function(error, loginUri){
   if (error) {
     throw error;
   } else {
+    // Step 2
     requestAuthGrant(loginUri, username, password, function(err, code){
       if (err){
         throw err;
       } else {
+        // Step 3
         requestTokens(code, function(e, tokens){
           if (e){
             throw e;
           } else {
-            // Report on all tokens that were received
-            console.log("Got tokens: " + util.inspect(tokens));
+            // We have completed tokens from MIC
+            console.log("\n");
+            console.log("Mobile Identity Connect auth completed successfully.");
+            console.log("Got tokens: ");
+            console.log(util.inspect(tokens, {colors: true}));
+            console.log("");
           }
         });
       }
