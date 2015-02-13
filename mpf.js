@@ -64,15 +64,19 @@ function reportRequestFailure(response, message){
   var status = response.statusCode;
 
   var contentType = headers["content-type"];
-  var requestId = headers["x-kinveyauth-request-id"];
+  var requestId = headers["x-kinveyauth-request-id"] || headers["x-kinvey-request-id"];
 
   console.log("!!! ", message, ":");
   console.log("!!! \tHTTP Status:   ", status);
   console.log("!!! \tRequest ID:    ", requestId);
 
   if (contentType.indexOf("application/json") !== -1){
-    // JSON Body
-    var debugMessage = JSON.parse(response.body);
+    // JSON Body, may already be parsed
+    var debugMessage = response.body;
+    try {
+      debugMessage = JSON.parse(response.body);
+    } catch(e){} // We're already parsed, ignore the error
+    
     console.log("!!! \tError:         ", debugMessage.error);
     console.log("!!! \tDescription:   ", debugMessage.description);
     console.log("!!! \tDebug:         ", debugMessage.debug);
@@ -196,6 +200,67 @@ function requestTokens(code, callback){
 
 
 
+function checkUser(username, tokens, callback){
+  var options = {
+    // TODO: Fix me
+    uri: "https://baas.kinvey.com/rpc/"+ kinveyAppId +"/check-username-exists",
+    followRedirect: false,
+    auth: {
+      user: kinveyAppId,
+      pass: kinveyAppSecret
+    },
+    json: {
+      username: username
+    }
+  };
+
+  request.post(options, function(error, httpResponse, body){
+    if (body.usernameExists !== undefined && body.usernameExists !== null){
+      return callback(null, body.usernameExists);
+    } else if (error){
+      console.log(error);
+      return callback(error);
+    } else {
+      return callback(reportRequestFailure(httpResponse, "Checking username existence"));
+    }
+  });
+
+}
+
+
+function performKinveyAuth(username, tokens){
+  checkUser(username, tokens, function(error, userExists){
+  var accessToken = tokens.access_token;
+    var options = {
+      uri: "",
+      followRedirect: false,
+      auth: {
+        user: kinveyAppId,
+        pass: kinveyAppSecret
+      },
+      json: {
+        username: username,
+        _socialIdentity: {
+          kinveyAuth: {
+            access_token: accessToken
+          }
+        }
+      }
+    };
+
+    if (userExists){
+      console.log("User " + username + " exists, logging in...");
+      options.uri = "https://baas.kinvey.com/user/" + kinveyAppId + "/login/";
+    } else {
+      console.log("User " + username + " does not exist, creating...");
+      options.uri = "https://baas.kinvey.com/user/" + kinveyAppId + "/";
+    }
+    request.post(options, function(error, httpResponse, body){
+      console.log(util.inspect(options, {colors: true, depth: 5}));
+      console.log(util.inspect(body, {colors: true}));
+    });
+  });
+}
 
 // Main Script
 nodeScriptName = process.argv[1];
@@ -232,6 +297,9 @@ requestAuthURI(function(error, loginUri){
             console.log("Got tokens: ");
             console.log(util.inspect(tokens, {colors: true}));
             console.log("");
+
+            performKinveyAuth(username, tokens);
+            
           }
         });
       }
