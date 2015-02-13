@@ -13,6 +13,7 @@
 
 "use strict";
 
+var colors = require('colors');
 var request = require('request');
 var util = require('util');
 
@@ -21,12 +22,19 @@ var nodeScriptName = "";
 
 var SET_TO_YOUR_APP_VALUE = "Set this to your app specific value before running.";
 
-var kinveyInstanceName = "auth"; // If using multi-tenant this is blank, otherwise it's something like ``vmwus1- ''
-var authUrlRoot = "https://" + kinveyInstanceName + ".kinvey.com/oauth/"; // DO NOT CHANGE THIS
-
 var kinveyAppId = SET_TO_YOUR_APP_VALUE;           // App ID from Kinvey Console
 var kinveyAppSecret = SET_TO_YOUR_APP_VALUE;       // App Secret from Kinvey Console
 var redirectUri = SET_TO_YOUR_APP_VALUE;           // This is the redirect URI configured in the console
+
+var kinveyAuthInstanceName = "auth"; // If not running on multi-tenant change this to your instance name, eg vmwus1-auth
+var kinveyDataInstanceName = "baas"; // If not running on multi-tenant change this to your instance name, eg vmwus1-baas
+
+// Do not change these
+var authUrlRoot = "https://" + kinveyAuthInstanceName + ".kinvey.com/oauth/";
+var dataUrlRoot = "https://" + kinveyDataInstanceName + ".kinvey.com/appdata/" + kinveyAppId + "/";
+var userUrlRoot = "https://" + kinveyDataInstanceName + ".kinvey.com/user/"    + kinveyAppId + "/";
+var rpcUrlRoot  = "https://" + kinveyDataInstanceName + ".kinvey.com/rpc/"     + kinveyAppId + "/";
+
 
 // Utilities
 
@@ -199,11 +207,10 @@ function requestTokens(code, callback){
 
 
 
-
-function checkUser(username, tokens, callback){
+/** Check to see if the given username exists in this app */
+function checkKinveyUsername(username, tokens, callback){
   var options = {
-    // TODO: Fix me
-    uri: "https://baas.kinvey.com/rpc/"+ kinveyAppId +"/check-username-exists",
+    url: rpcUrlRoot + "check-username-exists",
     followRedirect: false,
     auth: {
       user: kinveyAppId,
@@ -228,11 +235,12 @@ function checkUser(username, tokens, callback){
 }
 
 
-function performKinveyAuth(username, tokens){
-  checkUser(username, tokens, function(error, userExists){
-  var accessToken = tokens.access_token;
+/** Authenticate against KCS with the username and access tokens */
+function performKinveyAuth(username, tokens, callback){
+  checkKinveyUsername(username, tokens, function(error, userExists){
+    var accessToken = tokens.access_token;
     var options = {
-      uri: "",
+      url: "",
       followRedirect: false,
       auth: {
         user: kinveyAppId,
@@ -248,16 +256,27 @@ function performKinveyAuth(username, tokens){
       }
     };
 
+    // If the user already exists we need to just login as that user, otherwise
+    // we need to create the user.  Since it's more likely that the user exists
+    // an alternative strategy is to login, and if that fails to create the user
     if (userExists){
       console.log("User " + username + " exists, logging in...");
-      options.uri = "https://baas.kinvey.com/user/" + kinveyAppId + "/login/";
+      options.url = userUrlRoot + "login";
     } else {
       console.log("User " + username + " does not exist, creating...");
-      options.uri = "https://baas.kinvey.com/user/" + kinveyAppId + "/";
+      options.url = userUrlRoot;
     }
+
     request.post(options, function(error, httpResponse, body){
-      console.log(util.inspect(options, {colors: true, depth: 5}));
-      console.log(util.inspect(body, {colors: true}));
+
+      if (body._kmd && body._kmd.authtoken){
+        callback(null, body._kmd.authtoken);
+      } else if (error){
+        console.log(error);
+        return callback(error);
+      } else {
+        return callback(reportRequestFailure(httpResponse, "Either creating the user or logging in failed"));
+      }
     });
   });
 }
@@ -298,7 +317,20 @@ requestAuthURI(function(error, loginUri){
             console.log(util.inspect(tokens, {colors: true}));
             console.log("");
 
-            performKinveyAuth(username, tokens);
+            console.log("\nExchanging MIC access token for Kinvey session token.\n");
+
+            performKinveyAuth(username, tokens, function(e, kinveyToken){
+              if (e) {
+                throw e;
+              } else {
+                var curlCommand = "curl -X GET -H 'Authorization: Kinvey " + kinveyToken + "' " + dataUrlRoot;
+
+                console.log("\nKinvey Session token for user " + username.green + " is " + kinveyToken.green);
+
+                console.log("\nYou can use cURL to make requests as this user in the following way:");
+                console.log("\t" + curlCommand.green.bold + "\n");
+              }
+            });
             
           }
         });
