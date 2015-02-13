@@ -21,8 +21,8 @@ var nodeScriptName = "";
 
 var SET_TO_YOUR_APP_VALUE = "Set this to your app specific value before running.";
 
-var kinveyInstanceName = ""; // If using multi-tenant this is blank, otherwise it's something like ``vmwus1- ''
-var authUrlRoot = "https://" + kinveyInstanceName + "auth.kinvey.com/oauth/"; // DO NOT CHANGE THIS
+var kinveyInstanceName = "auth"; // If using multi-tenant this is blank, otherwise it's something like ``vmwus1- ''
+var authUrlRoot = "https://" + kinveyInstanceName + ".kinvey.com/oauth/"; // DO NOT CHANGE THIS
 
 var kinveyAppId = SET_TO_YOUR_APP_VALUE;           // App ID from Kinvey Console
 var kinveyAppSecret = SET_TO_YOUR_APP_VALUE;       // App Secret from Kinvey Console
