@@ -67,6 +67,7 @@ function die(message){
   process.exit(-1);
 }
 
+/** Report that a request failed and return an error based on the message. */
 function reportRequestFailure(response, message){
   var headers = response.headers;
   var status = response.statusCode;
